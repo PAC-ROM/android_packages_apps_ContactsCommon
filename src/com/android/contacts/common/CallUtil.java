@@ -22,11 +22,13 @@ import com.android.phone.common.PhoneConstants;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.SystemProperties;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 import android.telecom.VideoProfile;
 import android.text.TextUtils;
+import android.telephony.TelephonyManager;
 
 import java.util.List;
 
@@ -63,7 +65,7 @@ public class CallUtil {
      * automatically.
      */
     public static Intent getCallIntent(String number) {
-        return getCallIntent(getCallUri(number));
+        return getCallIntent(number, null);
     }
 
     /**
@@ -72,6 +74,28 @@ public class CallUtil {
      */
     public static Intent getCallIntent(Uri uri) {
         return new Intent(Intent.ACTION_CALL, uri);
+    }
+
+    /**
+     * A variant of {@link #getCallIntent(String, String)} but also include {@code Account}.
+     */
+    public static Intent getCallIntent(
+            String number, PhoneAccountHandle accountHandle) {
+        return getCallIntent(CallUtil.getCallUri(number), accountHandle);
+    }
+
+    /**
+     * A variant of {@link #getCallIntent(android.net.Uri)} but also accept a call
+     * origin and {@code Account} and {@code VideoCallProfile} state.
+     * For more information about call origin, see comments in Phone package (PhoneApp).
+     */
+    public static Intent getCallIntent(Uri uri, PhoneAccountHandle accountHandle) {
+        final Intent intent = new Intent(Intent.ACTION_CALL, uri);
+        if (accountHandle != null) {
+            intent.putExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, accountHandle);
+        }
+
+        return intent;
     }
 
     /**
@@ -163,5 +187,38 @@ public class CallUtil {
             }
         }
         return false;
+    }
+
+    /**
+     * if true, conference dialer  is enabled.
+     */
+    public static boolean isConferDialerEnabled(Context context) {
+        if (SystemProperties.getBoolean("persist.radio.conferdialer", false)) {
+            TelephonyManager telephonyMgr = (TelephonyManager)
+                    context.getSystemService(Context.TELEPHONY_SERVICE);
+            return telephonyMgr.isImsRegistered();
+        }
+        return false;
+    }
+
+    /**
+     * get intent to start conference dialer
+     * with this intent, we can originate an conference call
+     */
+    public static Intent getConferenceDialerIntent(String number) {
+        Intent intent = new Intent("android.intent.action.ADDPARTICIPANT");
+        intent.putExtra("confernece_number_key", number);
+        return intent;
+    }
+
+    /**
+     * used to get intent to start conference dialer
+     * with this intent, we can add participants to an existing conference call
+     */
+    public static Intent getAddParticipantsIntent(String number) {
+        Intent intent = new Intent("android.intent.action.ADDPARTICIPANT");
+        intent.putExtra("add_participant", true);
+        intent.putExtra("current_participant_list", number);
+        return intent;
     }
 }
